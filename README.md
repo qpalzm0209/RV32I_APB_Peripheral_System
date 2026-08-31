@@ -97,9 +97,8 @@ FSM은 다음 12개 상태로 구성됩니다.
 - Tool: Vivado 2020.2
 - 성능 비교 대상: memory-inclusive `rv32i_top`
 
-CPU 단독 OOC 구현은 내부 경로 회귀와 병목 진단에는 사용할 수 있지만, instruction/data memory 접근 지연이 제외되므로 시스템 동작 주파수나 구조 간 성능 결론에는 사용하지 않았습니다.
 
-### 메모리 포함 Fmax 탐색 결과
+### Fmax 탐색 결과
 
 `scripts/find_fmax.ps1`은 10.000 ns에서 시작하여 각 구현의 routed WNS를 읽고 다음 식으로 clock period를 낮춥니다.
 
@@ -127,22 +126,24 @@ WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.00
 | Multi-cycle top | `8.968 ns` | 4 | `35.872 ns/instruction` |
 
 Multi-cycle은 더 높은 Fmax를 달성하지만, 많은 cycle에 걸쳐 명령을 실행합니다.
-single-cycle은 긴 memory/execute/write-back 경로 때문에 Fmax가 61.93 MHz로 낮아지는 반면, multi-cycle은 111.51 MHz를 달성합니다.
-그러나 CPI까지 포함한 명령어 처리시간은 위 가정에서 single-cycle이 `2.22x` 짧습니다.
-따라서 구조 비교에는 **메모리를 포함한 Fmax와 CPI를 함께 사용해야 합니다.**
+single-cycle은 Fmax가 61.93 MHz로 낮아지는 반면, multi-cycle은 111.51 MHz를 달성합니다.
+그러나 CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니다.
+따라서 구조 비교에는 Fmax와 CPI를 함께 사용해야 합니다.
 
 
 ## 추가탐구) Multi-cycle 타이밍 개선
 
-<img width="1405" height="600" alt="image" src="https://github.com/user-attachments/assets/dd0d7431-734c-4b31-acd4-1b3289b06f95" />
-초기 multi-cycle 구현의 timing report에서는 `register_input → alu_out` 구간이 주요 병목으로 나타났고, 단계별 조합논리를 다시 분배해봤습니다.  
+<img width="1405" height="600" alt="image" src="https://github.com/user-attachments/assets/dd0d7431-734c-4b31-acd4-1b3289b06f95" />  
+
+초기 multi-cycle 구현의 timing report에서는 `register_input → alu_out` 구간이 주요 병목으로 나타났고, 단계별 조합논리를 다시 분배해봤습니다.   
 
 1. `register_input` 처리 뒤 ALU 입력 신호를 준비하던 mux/operand 선택 논리를 execute 단계에서 decode 단계로 이동했습니다.
 2. Decode 단계에서 `A`, `B`, immediate와 ALU source 선택을 미리 결정하여 execute 단계에는 실제 ALU 연산 중심의 경로만 남겼습니다.  
 
-<img width="1364" height="613" alt="image" src="https://github.com/user-attachments/assets/ea0b62da-ee2b-45c8-949d-786bbdbfddbe" />
+<img width="1364" height="613" alt="image" src="https://github.com/user-attachments/assets/ea0b62da-ee2b-45c8-949d-786bbdbfddbe" />  
+
 해당 경로는 기존 7 logic levels와 185 high-fanout loads를 포함했고, timing margin은 `+0.654 ns`였습니다.  
-변경 후 주요 경로는 6 logic levels와 119 high-fanout loads로 줄었고, timing margin은 `+0.771 ns`로 `0.117 ns` 증가했습니다.
+변경 후 주요 경로는 6 logic levels와 119 high-fanout loads로 줄었고, timing margin은 `+0.771 ns`로 `0.117 ns` 증가했습니다.  
 
 추가로 execute 단계를 mux 선택과 ALU 연산의 두 상태로 한 번 더 분리하는 방법도 검토했습니다.  
 이 방식은 조합 경로를 더 줄여 Fmax를 높일 수 있지만, FSM 상태와 명령당 cycle 수가 증가합니다.  
