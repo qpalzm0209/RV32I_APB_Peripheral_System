@@ -1,7 +1,7 @@
 # RV32I Single-Cycle vs Multi-Cycle CPU
 
 ## 프로젝트 개요
-**발표영상(싱글) : https://drive.google.com/file/d/1Dd8-uVmVCR4iDrL1-sjQq4NRWUTZ-mOQ/view?usp=drive_link  
+**발표영상(싱글) : https://drive.google.com/file/d/1Dd8-uVmVCR4iDrL1-sjQq4NRWUTZ-mOQ/view?usp=drive_link**  
 발표자료(싱글) : https://drive.google.com/file/d/1lJpqC5rr4aY5bQ42WpIgWDJ5MNwCTp14/view?usp=drive_link  
 발표자료(멀티) : https://drive.google.com/file/d/19TSYeDSoE6Xd23otR7XnSdfvnUUCIZsA/view?usp=drive_link  
 
