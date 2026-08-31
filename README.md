@@ -157,7 +157,7 @@ single-cycle은 긴 memory/execute/write-back 경로 때문에 Fmax가 61.93 MHz
 2. Decode 단계에서 `A`, `B`, immediate와 ALU source 선택을 미리 결정하여 execute 단계에는 실제 ALU 연산 중심의 경로만 남겼습니다.  
 
 <img width="1364" height="613" alt="image" src="https://github.com/user-attachments/assets/ea0b62da-ee2b-45c8-949d-786bbdbfddbe" />
-해당 경로는 기존 7 logic levels와 185 high-fanout loads를 포함했고, timing margin은 `+0.654 ns`였습니다.
+해당 경로는 기존 7 logic levels와 185 high-fanout loads를 포함했고, timing margin은 `+0.654 ns`였습니다.  
 변경 후 주요 경로는 6 logic levels와 119 high-fanout loads로 줄었고, timing margin은 `+0.771 ns`로 `0.117 ns` 증가했습니다.
 
 추가로 execute 단계를 mux 선택과 ALU 연산의 두 상태로 한 번 더 분리하는 방법도 검토했습니다.  
