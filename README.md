@@ -108,10 +108,10 @@ next_period = period - WNS - 0.05 ns
 
 WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.000 ns에서 바로 실패하는 대상은 먼저 음수 WNS만큼 period를 늘려 최초 통과점을 확보한 뒤 같은 하향 탐색을 수행합니다.
 
-| 대상 | 최소 통과 주기 | Fmax | 크리티컬 패스 시작 | 끝 |
+| 대상 | 최소 통과 주기 | Fmax | 크리티컬 패스 |
 | --- | ---: | ---: | --- | --- |
-| `rv32i_top` single-cycle | `16.148 ns` | `61.93 MHz` | `U_RV32I_CPU/U_DATAPATH/U_PC/U_PC_REG/reg_q_reg[4]/C` | `U_RV32I_CPU/U_DATAPATH/U_REG_FILE/reg_file_reg[23][9]/D` |
-| `rv32i_top` multi-cycle | `8.968 ns` | `111.51 MHz` | `U_RV32I_CPU/U_DATAPATH/ir_q_reg[1]/C` | `U_RV32I_CPU/U_DATAPATH/pc_q_reg[28]/D` |
+| single-cycle | `16.148 ns` | `61.93 MHz` | `U_RV32I_CPU/U_DATAPATH/U_PC/U_PC_REG/reg_q_reg[4]/C` → `U_RV32I_CPU/U_DATAPATH/U_REG_FILE/reg_file_reg[23][9]/D` |
+| multi-cycle | `8.968 ns` | `111.51 MHz` | `U_RV32I_CPU/U_DATAPATH/ir_q_reg[1]/C` → `U_RV32I_CPU/U_DATAPATH/pc_q_reg[28]/D` |
 
 
 ### 명령어 처리 성능
