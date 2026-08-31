@@ -91,31 +91,15 @@ FSM은 다음 12개 상태로 구성됩니다.
 
 ## FPGA 구현 및 Fmax 측정
 
-두 구조는 다음과 같은 공통 조건으로 합성, placement, routing했습니다.
+두 구조는 instruction memory, CPU, data memory를 연결한 `rv32i_top` 전체를 동일한 조건으로 합성, placement, routing하여 비교했습니다.
 
 - FPGA: Xilinx Artix-7 `xc7a35tcpg236-1` (Basys3)
 - Tool: Vivado 2020.2
-- 구현 범위:
-  - `rv32i_cpu` 단독 out-of-context(OOC)
-  - instruction/data memory를 연결한 `rv32i_top`
+- 성능 비교 대상: memory-inclusive `rv32i_top`
 
-### 100 MHz 고정 제약 비교
+CPU 단독 OOC 구현은 내부 경로 회귀와 병목 진단에는 사용할 수 있지만, instruction/data memory 접근 지연이 제외되므로 시스템 동작 주파수나 구조 간 성능 결론에는 사용하지 않았습니다.
 
-아래 결과는 두 CPU가 `10.000 ns` 제약을 만족하는지 비교한 기준 결과입니다.
-
-| 항목 | Single-cycle | Multi-cycle | 변화 |
-| --- | ---: | ---: | ---: |
-| Worst Negative Slack | `+0.126 ns` | `+0.749 ns` | `+0.623 ns` |
-| Worst datapath delay | `9.743 ns` | `9.100 ns` | `-0.643 ns` (`-6.6%`) |
-| Slice LUTs | `1,556` | `1,332` | `-224` (`-14.4%`) |
-| Slice Registers | `1,024` | `1,230` | `+206` (`+20.1%`) |
-| 100 MHz timing | 충족 | 충족 | Multi-cycle 여유 증가 |
-
-두 구조 모두 100 MHz를 통과습니다. 여기서 Vivado는 제약을 만족하면 추가적인 타이밍 최적화를 멈출 수 있습니다.  
-따라서 Fmax 비교에는 더 낮은 clock period을 반복 구현하며 최댓값을 찾는 것이 정확합니다.
-
-
-### 실제 Fmax 탐색 결과
+### 메모리 포함 Fmax 탐색 결과
 
 `scripts/find_fmax.ps1`은 10.000 ns에서 시작하여 각 구현의 routed WNS를 읽고 다음 식으로 clock period를 낮춥니다.
 
@@ -123,15 +107,12 @@ FSM은 다음 12개 상태로 구성됩니다.
 next_period = period - WNS - 0.05 ns
 ```
 
-WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.000 ns에서 바로 실패하는 대상은 먼저 음수 WNS만큼 period를 늘려 최초 통과점을 확보한 뒤 같은 하향 탐색을 수행합니다.  
-아래는 8회 반복 결과입니다.
+WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.000 ns에서 바로 실패하는 대상은 먼저 음수 WNS만큼 period를 늘려 최초 통과점을 확보한 뒤 같은 하향 탐색을 수행합니다.
 
 | 대상 | 최소 통과 주기 | Fmax | 크리티컬 패스 시작 | 끝 |
 | --- | ---: | ---: | --- | --- |
-| `rv32i_cpu` single-cycle (OOC) | `10.000 ns` | `100.00 MHz` | `U_DATAPATH/U_REG_FILE/reg_file_reg[18][4]/C` | `U_DATAPATH/U_REG_FILE/reg_file_reg[15][8]/D` |
-| `rv32i_cpu` multi-cycle (OOC) | `8.850 ns` | `112.99 MHz` | `U_DATAPATH/ir_q_reg[0]/C` | `U_DATAPATH/alu_out_q_reg[17]/D` |
 | `rv32i_top` single-cycle | `16.148 ns` | `61.93 MHz` | `U_RV32I_CPU/U_DATAPATH/U_PC/U_PC_REG/reg_q_reg[4]/C` | `U_RV32I_CPU/U_DATAPATH/U_REG_FILE/reg_file_reg[23][9]/D` |
-| `rv32i_top` multi-cycle | `8.968 ns` | `111.51 MHz` | `U_RV32I_CPU/U_DATAPATH/ir_q_reg[1]/C` | `U_RV32I_CPU/U_DATAPATH/pc_q_reg[28]/D` |  
+| `rv32i_top` multi-cycle | `8.968 ns` | `111.51 MHz` | `U_RV32I_CPU/U_DATAPATH/ir_q_reg[1]/C` | `U_RV32I_CPU/U_DATAPATH/pc_q_reg[28]/D` |
 
 
 ### 명령어 처리 성능
@@ -140,15 +121,15 @@ WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.00
 아래 비교는 single-cycle CPI를 1, multi-cycle의 대표 CPI를 4로 가정한 값입니다.  
 *실제 multi-cycle CPI는 명령 종류에 따라 3~5이므로 프로그램의 instruction mix에 따라 달라질 수 있습니다.*  
 
-| 구현 범위 | Single-cycle | Multi-cycle | 상대 성능 |
+| 구조 | Clock period | 가정 CPI | 명령어당 실행시간 |
 | --- | ---: | ---: | ---: |
-| CPU OOC | `10.000 ns/instruction` | `35.400 ns/instruction` | Single-cycle `3.54x` |
-| 메모리 포함 top | `16.148 ns/instruction` | `35.872 ns/instruction` | Single-cycle `2.22x` |
+| Single-cycle top | `16.148 ns` | 1 | `16.148 ns/instruction` |
+| Multi-cycle top | `8.968 ns` | 4 | `35.872 ns/instruction` |
 
-Multi-cycle은 더 높은 Fmax를 달성하지만, 많은 cycle에 걸쳐 명령을 실행합니다.  
-single-cycle은 긴 memory/execute/write-back 경로 때문에 Fmax가 61.93 MHz로 크게 낮아지는 반면, multi-cycle은 111.51 MHz를 유지합니다.  
-그러나 CPI까지 포함한 명령어 처리시간은 위 가정에서 single-cycle이 더 짧습니다.  
-처리 속도 비교에는 **Fmax와 CPI를 함께 사용해야 하며**, 이 때 현재 구조에서 처리속도는 **single-cycle이 더 우세합니다**
+Multi-cycle은 더 높은 Fmax를 달성하지만, 많은 cycle에 걸쳐 명령을 실행합니다.
+single-cycle은 긴 memory/execute/write-back 경로 때문에 Fmax가 61.93 MHz로 낮아지는 반면, multi-cycle은 111.51 MHz를 달성합니다.
+그러나 CPI까지 포함한 명령어 처리시간은 위 가정에서 single-cycle이 `2.22x` 짧습니다.
+따라서 구조 비교에는 **메모리를 포함한 Fmax와 CPI를 함께 사용해야 합니다.**
 
 
 ## 추가탐구) Multi-cycle 타이밍 개선
@@ -221,9 +202,7 @@ powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
 powershell -ExecutionPolicy Bypass -File scripts/run_timing_comparison.ps1
 ```
 
-스크립트는 두 구현을 같은 조건으로 합성·배치·배선하고 `.reports/single_cycle`, `.reports/multi_cycle`에 timing 및 utilization report를 생성합니다.
-
-이 명령은 기존과 동일하게 `10.000 ns` 고정 제약에서 두 CPU의 100 MHz 통과 여부를 비교합니다.
+이 스크립트는 기존 호환성을 위한 CPU OOC 10 ns 회귀 검사입니다. 메모리 접근이 제외되므로 생성된 `.reports/single_cycle`, `.reports/multi_cycle` 결과는 시스템 성능 비교에 사용하지 않습니다.
 
 ### Fmax 탐색
 
@@ -231,11 +210,11 @@ powershell -ExecutionPolicy Bypass -File scripts/run_timing_comparison.ps1
 powershell -ExecutionPolicy Bypass -File scripts/find_fmax.ps1
 ```
 
-CPU OOC와 memory-inclusive top을 각각 반복 구현하여 최소 통과 period를 찾습니다. 각 반복의 period, WNS, datapath delay, startpoint, endpoint는 `.reports/fmax_logs/find_fmax.log`에 기록되고, 최종 비교표와 CPI 기반 성능비는 `.reports/fmax_summary.md`에 생성됩니다.
+스크립트는 진단용 CPU OOC와 memory-inclusive top을 모두 실행하지만, 시스템 성능 비교에는 `rv32i_top` 두 결과만 사용합니다. 각 반복의 period, WNS, datapath delay, startpoint, endpoint는 `.reports/fmax_logs/find_fmax.log`에 기록되고, 최종 결과는 `.reports/fmax_summary.md`에 생성됩니다.
 
-`compare_timing.tcl`을 직접 호출할 때는 두 번째 Tcl 인자로 period(ns), 세 번째 인자로 구현 대상(`cpu_ooc` 또는 `top`)을 지정할 수 있습니다. period를 생략하면 기존과 동일하게 `10.000 ns`, 구현 대상을 생략하면 `cpu_ooc`가 사용됩니다.
+`compare_timing.tcl`을 직접 호출할 때는 두 번째 Tcl 인자로 period(ns), 세 번째 인자로 구현 대상(`cpu_ooc` 또는 `top`)을 지정할 수 있습니다. 성능 측정에는 메모리를 포함하는 `top`을 지정합니다.
 
 ```powershell
 C:\Xilinx\Vivado\2020.2\bin\vivado.bat -mode batch -nojournal -nolog `
-  -source scripts/compare_timing.tcl -tclargs single_cycle 8.000 cpu_ooc
+  -source scripts/compare_timing.tcl -tclargs single_cycle 16.000 top
 ```
