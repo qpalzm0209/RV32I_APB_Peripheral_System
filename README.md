@@ -110,8 +110,8 @@ WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.00
 
 | 대상 | 최소주기 | Fmax | 크리티컬 패스 |
 | --- | ---: | ---: | --- |
-| single | `16.148 ns` | `61.93 MHz` | `U_RV32I_CPU/U_DATAPATH/U_PC/U_PC_REG/reg_q_reg[4]/C` → `U_RV32I_CPU/U_DATAPATH/U_REG_FILE/reg_file_reg[23][9]/D` |
-| multi | `8.968 ns` | `111.51 MHz` | `U_RV32I_CPU/U_DATAPATH/ir_q_reg[1]/C` → `U_RV32I_CPU/U_DATAPATH/pc_q_reg[28]/D` |
+| single-cycle | `16.148 ns` | `61.93 MHz` | `U_RV32I_CPU/U_DATAPATH/U_PC/U_PC_REG/reg_q_reg[4]/C` → `U_RV32I_CPU/U_DATAPATH/U_REG_FILE/reg_file_reg[23][9]/D` |
+| multi-cycle | `8.968 ns` | `111.51 MHz` | `U_RV32I_CPU/U_DATAPATH/ir_q_reg[1]/C` → `U_RV32I_CPU/U_DATAPATH/pc_q_reg[28]/D` |
 
 
 ### 명령어 처리 성능
@@ -122,13 +122,13 @@ WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.00
 
 | 구조 | Clock period | 평균 CPI | 명령어당 실행시간 |
 | --- | ---: | ---: | ---: |
-| Single-cycle top | `16.148 ns` | 1 | `16.148 ns/instruction` |
-| Multi-cycle top | `8.968 ns` | 4 | `35.872 ns/instruction` |
+| Single-cycle | `16.148 ns` | 1 | `16.148 ns/instruction` |
+| Multi-cycle | `8.968 ns` | 4 | `35.872 ns/instruction` |
 
-Multi-cycle은 더 높은 Fmax를 달성하지만, 많은 cycle에 걸쳐 명령을 실행합니다.
-single-cycle은 Fmax가 61.93 MHz로 낮아지는 반면, multi-cycle은 111.51 MHz를 달성합니다.
-그러나 CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니다.
-따라서 구조 비교에는 Fmax와 CPI를 함께 사용해야 합니다.
+single-cycle은 Fmax가 61.93 MHz, multi-cycle은 111.51 MHz를 달성합니다.
+Multi-cycle가 더 높은 Fmax를 달성하지만, 더 많은 cycle에 걸쳐 명령을 실행합니다.
+CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니다.
+이처럼 비교에는 Fmax와 CPI를 함께 고려해야 합니다.
 
 
 ## 추가탐구) Multi-cycle 타이밍 개선
