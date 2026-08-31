@@ -118,7 +118,7 @@ WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.00
 
 명령어당 실행시간은 `clock period × CPI`로 계산합니다.  
 아래 비교는 single-cycle CPI를 1, multi-cycle의 대표 CPI를 4로 가정한 값입니다.  
-*실제 multi-cycle CPI는 명령 종류에 따라 3~5이므로 프로그램의 instruction mix에 따라 달라질 수 있습니다.*  
+>*실제 multi-cycle CPI는 명령 종류에 따라 3~5이므로 프로그램의 instruction mix에 따라 달라질 수 있습니다.*  
 
 | 구조 | Clock period | 평균 CPI | 명령어당 실행시간 |
 | --- | ---: | ---: | ---: |
