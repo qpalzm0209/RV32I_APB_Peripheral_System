@@ -125,10 +125,10 @@ WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.00
 | Single-cycle | `16.148 ns` | 1 | `16.148 ns/instruction` |
 | Multi-cycle | `8.968 ns` | 4 | `35.872 ns/instruction` |
 
-single-cycle은 Fmax가 61.93 MHz, multi-cycle은 111.51 MHz를 달성합니다.
-Multi-cycle가 더 높은 Fmax를 달성하지만, 더 많은 cycle에 걸쳐 명령을 실행합니다.
-CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니다.
-이처럼 비교에는 Fmax와 CPI를 함께 고려해야 합니다.
+single-cycle은 Fmax가 61.93 MHz, multi-cycle은 111.51 MHz를 달성합니다.  
+Multi-cycle가 더 높은 Fmax를 달성하지만, 더 많은 cycle에 걸쳐 명령을 실행합니다.  
+CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니다.  
+이처럼 비교에는 Fmax와 CPI를 함께 고려해야 합니다.  
 
 
 ## 추가탐구) Multi-cycle 타이밍 개선
