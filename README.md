@@ -116,8 +116,6 @@ next_period = period - WNS - 0.05 ns
 
 WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.000 ns에서 바로 실패하는 대상은 먼저 음수 WNS만큼 period를 늘려 최초 통과점을 확보한 뒤 같은 하향 탐색을 수행합니다.
 
-아래 값은 decode/execute 경계를 명시적으로 분리하기 전 측정 기록입니다. 구조 변경 후 memory-inclusive Fmax는 `find_fmax.ps1`로 다시 측정해야 합니다.
-
 | 대상 | 최소주기 | Fmax | 크리티컬 패스 |
 | --- | ---: | ---: | --- |
 | single-cycle | `16.148 ns` | `61.93 MHz` | `U_RV32I_CPU/U_DATAPATH/U_PC/U_PC_REG/reg_q_reg[4]/C` → `U_RV32I_CPU/U_DATAPATH/U_REG_FILE/reg_file_reg[23][9]/D` |
