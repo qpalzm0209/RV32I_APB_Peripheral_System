@@ -118,10 +118,16 @@ WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.00
 
 아래 값은 decode/execute 경계를 명시적으로 분리하기 전 측정 기록입니다. 구조 변경 후 memory-inclusive Fmax는 `find_fmax.ps1`로 다시 측정해야 합니다.
 
-| 대상 | 최소주기 | Fmax | 크리티컬 패스 |
-| --- | ---: | ---: | --- |
-| single-cycle | `16.148 ns` | `61.93 MHz` | `U_RV32I_CPU/U_DATAPATH/U_PC/U_PC_REG/reg_q_reg[4]/C` → `U_RV32I_CPU/U_DATAPATH/U_REG_FILE/reg_file_reg[23][9]/D` |
-| multi-cycle | `8.968 ns` | `111.51 MHz` | `U_RV32I_CPU/U_DATAPATH/ir_q_reg[1]/C` → `U_RV32I_CPU/U_DATAPATH/pc_q_reg[28]/D` |
+| 대상 | 최소주기 | Fmax |
+| --- | ---: | ---: |
+| single-cycle | `16.148 ns` | `61.93 MHz` |
+| multi-cycle | `8.968 ns` | `111.51 MHz` |
+
+현재 multi-cycle RTL의 memory-inclusive top을 10 ns 제약으로 다시 구현한 결과는 다음과 같습니다.
+
+| Clock constraint | WNS | Data path delay | 크리티컬 패스 |
+| ---: | ---: | ---: | --- |
+| `10.000 ns` | `+1.249 ns` | `8.720 ns` | `U_RV32I_CPU/U_DATAPATH/alu_out_reg[0]/C` → `U_DATA_MEM/dmem_reg[9][3]/D` |
 
 
 ### 명령어 처리 성능
@@ -155,7 +161,7 @@ CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니�
 
 Vivado CPU OOC, 10 ns routed 검사에서 register file은 distributed RAM 48 LUT로 추론됐으며, data path delay는 `8.765 ns`, WNS는 `+1.182 ns`였습니다.
 
-Data memory의 runtime reset까지 제거한 memory-inclusive top 재검증에서는 WNS가 `+1.249 ns`였고, 최장 경로는 `ALUOut`에서 data memory FF로 이어지는 `8.720 ns` 경로였습니다. Data memory는 비동기 다중-byte 접근 구조가 유지되어 block RAM으로 추론되지 않았고, 여전히 1,024개의 FF로 구현됐습니다.
+위 memory-inclusive top 재검증에서 최장 경로는 `ALUOut`에서 data memory FF로 이어지는 경로였습니다. Data memory는 비동기 다중-byte 접근 구조가 유지되어 block RAM으로 추론되지 않았고, 여전히 1,024개의 FF로 구현됐습니다.
 
 
 ## 디렉터리 구조
