@@ -131,25 +131,6 @@ CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니�
 이처럼 비교에는 Fmax와 CPI를 함께 고려해야 합니다.  
 
 
-## 추가탐구) Multi-cycle 타이밍 개선
-
-<img width="1405" height="600" alt="image" src="https://github.com/user-attachments/assets/dd0d7431-734c-4b31-acd4-1b3289b06f95" />  
-
-초기 multi-cycle 구현의 timing report에서는 `register_input → alu_out` 구간이 주요 병목으로 나타났고, 단계별 조합논리를 다시 분배해봤습니다.   
-
-1. `register_input` 처리 뒤 ALU 입력 신호를 준비하던 mux/operand 선택 논리를 execute 단계에서 decode 단계로 이동했습니다.
-2. Decode 단계에서 `A`, `B`, immediate와 ALU source 선택을 미리 결정하여 execute 단계에는 실제 ALU 연산 중심의 경로만 남겼습니다.  
-
-<img width="1364" height="613" alt="image" src="https://github.com/user-attachments/assets/ea0b62da-ee2b-45c8-949d-786bbdbfddbe" />  
-
-해당 경로는 기존 7 logic levels와 185 high-fanout loads를 포함했고, timing margin은 `+0.654 ns`였습니다.  
-변경 후 주요 경로는 6 logic levels와 119 high-fanout loads로 줄었고, timing margin은 `+0.771 ns`로 `0.117 ns` 증가했습니다.  
-
-> execute 단계를 mux 선택과 ALU 연산의 두 상태로 추가 분리하는 방법을 검토해봤습니다.  
-> 이는 조합 경로를 더 줄여 Fmax를 높일 수 있지만, FSM 상태와 명령당 cycle 수가 증가합니다.  
-> 해당 프로젝트에서는 학습용 제어 단계 구분과 명령어 처리 흐름을 명확히 유지하기 위해 해당 변경은 적용하지 않았습니다.
-
-
 ## 디렉터리 구조
 
 ```text
