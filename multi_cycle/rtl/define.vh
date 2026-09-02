@@ -55,7 +55,7 @@
 `define RESULT_MDR     2'b01
 `define RESULT_IMM     2'b10
 `define RESULT_PC      2'b11
-`define PC_SRC_ALU     1'b0
-`define PC_SRC_JALR    1'b1
+`define PC_SRC_ALU     2'b00
+`define PC_SRC_JALR    2'b10
 
 `endif

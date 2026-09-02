@@ -13,12 +13,12 @@ module rv32i_cpu (
     output [31:0] data_wdata
 );
     logic        ir_we;
-    logic        operand_we;
+    logic        decode_we;
     logic        alu_out_we;
     logic        mdr_we;
     logic        reg_we;
     logic        pc_we;
-    logic        pc_src_sel;
+    logic [1:0]  pc_src_sel;
     logic [1:0]  alu_src_a_sel;
     logic [1:0]  alu_src_b_sel;
     logic [1:0]  result_src_sel;
@@ -26,9 +26,11 @@ module rv32i_cpu (
     logic [6:0]  opcode;
     logic [2:0]  funct3;
     logic [6:0]  funct7;
+    logic [2:0]  memory_operation;
+    logic [3:0]  alu_operation;
     logic        branch_taken;
 
-    assign data_funct3 = funct3;
+    assign data_funct3 = memory_operation;
 
     control_unit U_CONTROL_UNIT (
         .clk(clk),
@@ -36,9 +38,10 @@ module rv32i_cpu (
         .opcode(opcode),
         .funct3(funct3),
         .funct7(funct7),
+        .alu_operation(alu_operation),
         .branch_taken(branch_taken),
         .ir_we(ir_we),
-        .operand_we(operand_we),
+        .decode_we(decode_we),
         .alu_out_we(alu_out_we),
         .mdr_we(mdr_we),
         .reg_we(reg_we),
@@ -55,7 +58,7 @@ module rv32i_cpu (
         .clk(clk),
         .rst(rst),
         .ir_we(ir_we),
-        .operand_we(operand_we),
+        .decode_we(decode_we),
         .alu_out_we(alu_out_we),
         .mdr_we(mdr_we),
         .reg_we(reg_we),
@@ -73,6 +76,8 @@ module rv32i_cpu (
         .opcode(opcode),
         .funct3(funct3),
         .funct7(funct7),
+        .memory_operation(memory_operation),
+        .alu_operation(alu_operation),
         .branch_taken(branch_taken)
     );
 endmodule
@@ -82,33 +87,37 @@ module control_unit (
     input        [6:0] opcode,
     input        [2:0] funct3,
     input        [6:0] funct7,
+    input        [3:0] alu_operation,
     input              branch_taken,
     output logic       ir_we,
-    output logic       operand_we,
+    output logic       decode_we,
     output logic       alu_out_we,
     output logic       mdr_we,
     output logic       reg_we,
     output logic       pc_we,
     output logic       data_we,
-    output logic       pc_src_sel,
+    output logic [1:0] pc_src_sel,
     output logic [1:0] alu_src_a_sel,
     output logic [1:0] alu_src_b_sel,
     output logic [1:0] result_src_sel,
     output logic [3:0] alu_control
 );
     typedef enum logic [3:0] {
-        FETCH      = 4'd0,
-        DECODE     = 4'd1,
-        ALU_EXEC   = 4'd2,
-        ALU_WB     = 4'd3,
-        MEM_ADDR   = 4'd4,
-        MEM_READ   = 4'd5,
-        MEM_WB     = 4'd6,
-        MEM_WRITE  = 4'd7,
-        BRANCH     = 4'd8,
-        LUI_WB     = 4'd9,
-        JUMP       = 4'd10,
-        JALR_EXEC  = 4'd11
+        FETCH       = 4'd0,
+        DECODE      = 4'd1,
+        R_EXEC      = 4'd2,
+        I_EXEC      = 4'd3,
+        AUIPC_EXEC  = 4'd4,
+        ALU_WB      = 4'd5,
+        LOAD_ADDR   = 4'd6,
+        LOAD_READ   = 4'd7,
+        LOAD_WB     = 4'd8,
+        STORE_ADDR  = 4'd9,
+        STORE_WRITE = 4'd10,
+        BRANCH      = 4'd11,
+        LUI_WB      = 4'd12,
+        JUMP        = 4'd13,
+        JALR_EXEC   = 4'd14
     } state_e;
 
     state_e state_q;
@@ -176,26 +185,30 @@ module control_unit (
             DECODE: begin
                 if (instr_legal) begin
                     unique case (opcode)
-                        `R_TYPE, `I_ALU_TYPE, `AUIPC_TYPE: state_d = ALU_EXEC;
-                        `LOAD_TYPE, `S_TYPE:               state_d = MEM_ADDR;
-                        `B_TYPE:                           state_d = BRANCH;
-                        `LUI_TYPE:                         state_d = LUI_WB;
-                        `JAL_TYPE:                         state_d = JUMP;
-                        `JALR_TYPE:                        state_d = JALR_EXEC;
-                        default:                           state_d = FETCH;
+                        `R_TYPE:     state_d = R_EXEC;
+                        `I_ALU_TYPE: state_d = I_EXEC;
+                        `AUIPC_TYPE: state_d = AUIPC_EXEC;
+                        `LOAD_TYPE:  state_d = LOAD_ADDR;
+                        `S_TYPE:     state_d = STORE_ADDR;
+                        `B_TYPE:     state_d = BRANCH;
+                        `LUI_TYPE:   state_d = LUI_WB;
+                        `JAL_TYPE:   state_d = JUMP;
+                        `JALR_TYPE:  state_d = JALR_EXEC;
+                        default:     state_d = FETCH;
                     endcase
                 end
             end
-            ALU_EXEC:  state_d = ALU_WB;
-            MEM_ADDR:  state_d = (opcode == `LOAD_TYPE) ? MEM_READ : MEM_WRITE;
-            MEM_READ:  state_d = MEM_WB;
-            default:   state_d = FETCH;
+            R_EXEC, I_EXEC, AUIPC_EXEC: state_d = ALU_WB;
+            LOAD_ADDR:                   state_d = LOAD_READ;
+            LOAD_READ:                   state_d = LOAD_WB;
+            STORE_ADDR:                  state_d = STORE_WRITE;
+            default:                     state_d = FETCH;
         endcase
     end
 
     always_comb begin
         ir_we          = 1'b0;
-        operand_we     = 1'b0;
+        decode_we      = 1'b0;
         alu_out_we     = 1'b0;
         mdr_we         = 1'b0;
         reg_we         = 1'b0;
@@ -217,25 +230,28 @@ module control_unit (
             end
 
             DECODE: begin
-                operand_we = instr_legal;
+                decode_we = instr_legal;
             end
 
-            ALU_EXEC: begin
-                alu_out_we = 1'b1;
-                alu_src_a_sel = (opcode == `AUIPC_TYPE) ?
-                                `ALU_A_OLD_PC : `ALU_A_REG_A;
-                alu_src_b_sel = (opcode == `R_TYPE) ?
-                                `ALU_B_REG_B : `ALU_B_IMM;
+            R_EXEC: begin
+                alu_out_we    = 1'b1;
+                alu_src_a_sel = `ALU_A_REG_A;
+                alu_src_b_sel = `ALU_B_REG_B;
+                alu_control   = alu_operation;
+            end
 
-                if (opcode == `R_TYPE)
-                    alu_control = {funct7[5], funct3};
-                else if (opcode == `I_ALU_TYPE) begin
-                    if ((funct3 == 3'b001) || (funct3 == 3'b101))
-                        alu_control = {funct7[5], funct3};
-                    else
-                        alu_control = {1'b0, funct3};
-                end else
-                    alu_control = `ADD;
+            I_EXEC: begin
+                alu_out_we    = 1'b1;
+                alu_src_a_sel = `ALU_A_REG_A;
+                alu_src_b_sel = `ALU_B_IMM;
+                alu_control   = alu_operation;
+            end
+
+            AUIPC_EXEC: begin
+                alu_out_we    = 1'b1;
+                alu_src_a_sel = `ALU_A_OLD_PC;
+                alu_src_b_sel = `ALU_B_IMM;
+                alu_control   = `ADD;
             end
 
             ALU_WB: begin
@@ -243,23 +259,23 @@ module control_unit (
                 result_src_sel = `RESULT_ALU_OUT;
             end
 
-            MEM_ADDR: begin
+            LOAD_ADDR, STORE_ADDR: begin
                 alu_out_we    = 1'b1;
                 alu_src_a_sel = `ALU_A_REG_A;
                 alu_src_b_sel = `ALU_B_IMM;
                 alu_control   = `ADD;
             end
 
-            MEM_READ: begin
+            LOAD_READ: begin
                 mdr_we = 1'b1;
             end
 
-            MEM_WB: begin
+            LOAD_WB: begin
                 reg_we         = 1'b1;
                 result_src_sel = `RESULT_MDR;
             end
 
-            MEM_WRITE: begin
+            STORE_WRITE: begin
                 data_we = 1'b1;
             end
 
@@ -267,6 +283,7 @@ module control_unit (
                 alu_src_a_sel = `ALU_A_OLD_PC;
                 alu_src_b_sel = `ALU_B_IMM;
                 alu_control   = `ADD;
+                pc_src_sel    = `PC_SRC_ALU;
                 pc_we         = branch_taken;
             end
 
@@ -281,6 +298,7 @@ module control_unit (
                 alu_src_a_sel  = `ALU_A_OLD_PC;
                 alu_src_b_sel  = `ALU_B_IMM;
                 alu_control    = `ADD;
+                pc_src_sel     = `PC_SRC_ALU;
                 pc_we          = 1'b1;
             end
 

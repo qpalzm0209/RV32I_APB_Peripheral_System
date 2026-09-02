@@ -26,12 +26,11 @@ module data_mem (
         end
     end
 
-    always_ff @(posedge clk, posedge rst) begin
-        if (rst) begin
-            for (int idx = 0; idx < 128; idx = idx + 1) begin
-                dmem[idx] <= 8'd0;
-            end
-        end else if (data_we) begin
+    // Do not clear the memory array at runtime.  A reset loop expands the
+    // array into individual flip-flops and prevents RAM inference.  The
+    // initial block above defines only the FPGA configuration-time contents.
+    always_ff @(posedge clk) begin
+        if (data_we) begin
             // Store width is selected by funct3.
             unique case (i_funct3)
                 // SB

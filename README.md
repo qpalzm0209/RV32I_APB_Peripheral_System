@@ -32,11 +32,14 @@
 | 항목 | Single-cycle | Multi-cycle |
 | --- | --- | --- |
 | 명령 실행 | 모든 단계를 한 clock cycle에 처리 | 실행 단계를 FSM 상태로 분리 |
-| 제어 방식 | opcode 기반 조합논리 | 12-state sequential FSM |
-| 중간 레지스터 | 별도 단계 레지스터 없음 | `IR`, `OldPC`, `A`, `B`, `ALUOut`, `MDR` |
+| 제어 방식 | opcode 기반 조합논리 | 15-state sequential FSM |
+| 중간 데이터 레지스터 | 별도 단계 레지스터 없음 | 7개: `IR`, `OldPC`, `A`, `B`, `Immediate`, `ALUOut`, `MDR` |
+| 저장된 decode 정보 | 별도 저장 없음 | 4개: `Destination`, `ALUOp`, `BranchOp`, `MemOp` |
 | 명령당 cycle | 모든 명령 1 cycle | 명령 종류에 따라 3~5 cycles |
 | 주요 장점 | 낮은 CPI, 단순한 상태 흐름 | 짧은 조합 경로, 단계별 자원 재사용 |
 | 주요 trade-off | 가장 긴 명령이 clock period 결정 | 명령 latency와 제어 상태 증가 |
+
+Multi-cycle의 단계 경계에는 총 11개의 레지스터 그룹이 사용됩니다. 이 개수는 두 구현에 공통인 `PC`와 register file, 그리고 제어기의 FSM state register를 제외한 값입니다.
 
 
 ### Single-cycle 실행 흐름
@@ -53,27 +56,32 @@ PC에서 instruction을 읽은 뒤 register file, immediate extender, ALU, data 
 ### Multi-cycle 실행 흐름
 
 ```text
-FETCH → DECODE ┬→ ALU_EXEC → ALU_WB
-               ├→ MEM_ADDR → MEM_READ → MEM_WB
-               ├→ MEM_ADDR → MEM_WRITE
+FETCH → DECODE ┬→ R_EXEC ──────→ ALU_WB
+               ├→ I_EXEC ──────→ ALU_WB
+               ├→ AUIPC_EXEC ──→ ALU_WB
+               ├→ LOAD_ADDR ───→ LOAD_READ → LOAD_WB
+               ├→ STORE_ADDR ──→ STORE_WRITE
                ├→ BRANCH
                ├→ LUI_WB
                ├→ JUMP
                └→ JALR_EXEC
 ```
 
-FSM은 다음 12개 상태로 구성됩니다.
+FSM은 다음 15개 상태로 구성됩니다. `DECODE`에서 operand, immediate, destination과 실행 제어를 레지스터에 저장하며, 이후 상태는 IR을 직접 사용하지 않습니다.
 
 | 상태 | 동작 |
 | --- | --- |
 | `FETCH` | instruction을 IR에 저장하고 `PC + 4` 계산 |
-| `DECODE` | instruction 해석 및 `rs1`, `rs2` operand 저장 |
-| `ALU_EXEC` | R/I-Type ALU 또는 AUIPC 연산 |
+| `DECODE` | instruction 해석 및 operand, immediate, destination, 실행 제어 저장 |
+| `R_EXEC` | R-Type ALU 연산 |
+| `I_EXEC` | I-Type ALU 연산 |
+| `AUIPC_EXEC` | `OldPC + immediate` 연산 |
 | `ALU_WB` | ALU 결과를 `rd`에 기록 |
-| `MEM_ADDR` | load/store effective address 계산 |
-| `MEM_READ` | data memory 출력값을 MDR에 저장 |
-| `MEM_WB` | MDR 값을 `rd`에 기록 |
-| `MEM_WRITE` | `rs2` 값을 data memory에 기록 |
+| `LOAD_ADDR` | load effective address 계산 |
+| `LOAD_READ` | data memory 출력값을 MDR에 저장 |
+| `LOAD_WB` | MDR 값을 `rd`에 기록 |
+| `STORE_ADDR` | store effective address 계산 |
+| `STORE_WRITE` | `rs2` 값을 data memory에 기록 |
 | `BRANCH` | 조건 비교 후 branch target으로 PC 갱신 |
 | `LUI_WB` | upper immediate를 `rd`에 기록 |
 | `JUMP` | JAL link 저장 및 PC 갱신 |
@@ -98,7 +106,7 @@ FSM은 다음 12개 상태로 구성됩니다.
 - 성능 비교 대상: memory-inclusive `rv32i_top`
 
 
-### Fmax 탐색 결과
+### 기존 Fmax 탐색 결과
 
 `scripts/find_fmax.ps1`은 10.000 ns에서 시작하여 각 구현의 routed WNS를 읽고 다음 식으로 clock period를 낮춥니다.
 
@@ -108,6 +116,8 @@ next_period = period - WNS - 0.05 ns
 
 WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.000 ns에서 바로 실패하는 대상은 먼저 음수 WNS만큼 period를 늘려 최초 통과점을 확보한 뒤 같은 하향 탐색을 수행합니다.
 
+아래 값은 decode/execute 경계를 명시적으로 분리하기 전 측정 기록입니다. 구조 변경 후 memory-inclusive Fmax는 `find_fmax.ps1`로 다시 측정해야 합니다.
+
 | 대상 | 최소주기 | Fmax | 크리티컬 패스 |
 | --- | ---: | ---: | --- |
 | single-cycle | `16.148 ns` | `61.93 MHz` | `U_RV32I_CPU/U_DATAPATH/U_PC/U_PC_REG/reg_q_reg[4]/C` → `U_RV32I_CPU/U_DATAPATH/U_REG_FILE/reg_file_reg[23][9]/D` |
@@ -115,6 +125,8 @@ WNS가 음수가 되면 직전 통과 period를 결과로 채택합니다. 10.00
 
 
 ### 명령어 처리 성능
+
+아래 계산도 위의 구조 개선 전 Fmax 측정값을 기준으로 합니다.
 
 명령어당 실행시간은 `clock period × CPI`로 계산합니다.  
 아래 비교는 single-cycle CPI를 1, multi-cycle의 대표 CPI를 4로 가정한 값입니다.  
@@ -129,6 +141,21 @@ single-cycle은 Fmax가 61.93 MHz, multi-cycle은 111.51 MHz를 달성합니다.
 Multi-cycle가 더 높은 Fmax를 달성하지만, 더 많은 cycle에 걸쳐 명령을 실행합니다.  
 CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니다.  
 이처럼 비교에는 Fmax와 CPI를 함께 고려해야 합니다.  
+
+
+## 추가탐구) Multi-cycle 타이밍 개선
+
+초기 구현은 IR에서 immediate와 ALU 제어를 조합논리로 생성해 execute 결과 레지스터까지 직접 전달했습니다. 현재 구현은 다음과 같이 단계 경계를 명시합니다.
+
+1. `DECODE`에서 `A`, `B`, `Immediate`, `Destination`, `ALUOp`, `BranchOp`, `MemOp`를 저장합니다.
+2. R-Type, I-Type, AUIPC, load, store를 별도 execute/address 상태로 분리했습니다.
+3. branch와 jump target은 저장된 `OldPC`와 `Immediate`를 사용해 해당 실행 상태에서 계산합니다.
+4. register file 데이터 배열의 runtime reset을 제거하고 distributed RAM으로 추론되도록 했습니다. reset 후 읽기 동작은 valid bitmap으로 유지합니다.
+5. byte-addressed data memory의 구조는 유지하되 메모리 배열 전체를 지우는 runtime reset은 제거했습니다. 초기값은 FPGA configuration 시에만 적용됩니다.
+
+Vivado CPU OOC, 10 ns routed 검사에서 register file은 distributed RAM 48 LUT로 추론됐으며, data path delay는 `8.765 ns`, WNS는 `+1.182 ns`였습니다.
+
+Data memory의 runtime reset까지 제거한 memory-inclusive top 재검증에서는 WNS가 `+1.249 ns`였고, 최장 경로는 `ALUOut`에서 data memory FF로 이어지는 `8.720 ns` 경로였습니다. Data memory는 비동기 다중-byte 접근 구조가 유지되어 block RAM으로 추론되지 않았고, 여전히 1,024개의 FF로 구현됐습니다.
 
 
 ## 디렉터리 구조
@@ -159,7 +186,9 @@ CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니�
 │  │  └─ tb_control_flow_edges.sv
 │  └─ multi_cycle/
 │     ├─ tb_multicycle_timing.sv
-│     └─ tb_illegal_instruction.sv
+│     ├─ tb_illegal_instruction.sv
+│     ├─ tb_register_file_reset.sv
+│     └─ tb_data_mem_reset.sv
 └─ scripts/
    ├─ run_tests.ps1
    ├─ compare_timing.tcl
@@ -176,7 +205,7 @@ CPI를 고려하면 명령어 처리시간은 single-cycle이 `2.22x` 짧습니�
 powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
 ```
 
-공통 ISA 및 control-flow testbench를 두 코어에 각각 실행합니다. 멀티사이클 코어에는 상태별 PC timing과 illegal instruction side-effect 억제 검증을 추가로 실행합니다.
+공통 ISA 및 control-flow testbench를 두 코어에 각각 실행합니다. 멀티사이클 코어에는 상태별 PC timing, illegal instruction side-effect 억제, LUTRAM register file reset semantics, runtime reset 후 data memory 유지 검증을 추가로 실행합니다.
 
 ### 타이밍 비교
 

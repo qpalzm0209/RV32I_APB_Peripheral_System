@@ -26,7 +26,9 @@ $variants = @(
             'common\tb_rv32i_isa.sv',
             'common\tb_control_flow_edges.sv',
             'multi_cycle\tb_multicycle_timing.sv',
-            'multi_cycle\tb_illegal_instruction.sv'
+            'multi_cycle\tb_illegal_instruction.sv',
+            'multi_cycle\tb_register_file_reset.sv',
+            'multi_cycle\tb_data_mem_reset.sv'
         )
     }
 )
