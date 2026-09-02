@@ -106,7 +106,7 @@ FSM은 다음 15개 상태로 구성됩니다. `DECODE`에서 operand, immediate
 - 성능 비교 대상: memory-inclusive `rv32i_top`
 
 
-### 기존 Fmax 탐색 결과
+### Fmax 탐색 결과
 
 `scripts/find_fmax.ps1`은 10.000 ns에서 시작하여 각 구현의 routed WNS를 읽고 다음 식으로 clock period를 낮춥니다.
 
